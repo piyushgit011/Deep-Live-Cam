@@ -12,24 +12,36 @@ import json
 import uuid
 import logging
 import base64
+import time
 from pathlib import Path
 
-# Import face processing modules
-from face_processor import FaceSwapProcessor
+# Import optimized face processing modules
+from face_processor import HighPerformanceFaceSwapProcessor
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # Global variables
-face_processor = FaceSwapProcessor()
+face_processor = HighPerformanceFaceSwapProcessor()
 active_websockets = set()
+
+# Performance tracking
+frame_stats = {
+    "frames_received": 0,
+    "frames_processed": 0,
+    "start_time": time.time(),
+    "last_fps_log": time.time()
+}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI lifespan event handler"""
     # Startup
-    logger.info("🚀 Starting Deep Live Cam WebSocket API...")
+    logger.info("🚀 Starting High-Performance Deep Live Cam WebSocket API...")
     
     # Create required directories
     os.makedirs("static", exist_ok=True)
@@ -38,11 +50,11 @@ async def lifespan(app: FastAPI):
     # Initialize face processor
     try:
         await face_processor.initialize()
-        logger.info("✅ Face processor initialized successfully")
+        logger.info("✅ High-performance face processor initialized successfully")
     except Exception as e:
         logger.error(f"❌ Failed to initialize face processor: {str(e)}")
     
-    logger.info("🎭 Deep Live Cam WebSocket API ready!")
+    logger.info("🎭 High-Performance Deep Live Cam WebSocket API ready!")
     
     yield
     
@@ -51,7 +63,7 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app with lifespan
 app = FastAPI(
-    title="Deep Live Cam WebSocket API", 
+    title="High-Performance Deep Live Cam WebSocket API", 
     version="1.0.0",
     lifespan=lifespan
 )
@@ -116,13 +128,19 @@ async def upload_face(file: UploadFile = File(...)):
 
 @app.websocket("/ws/video")
 async def websocket_video_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for video streaming"""
+    """High-performance WebSocket endpoint for video streaming"""
     await websocket.accept()
     active_websockets.add(websocket)
     
     logger.info(f"📹 WebSocket connection established. Active connections: {len(active_websockets)}")
     
-    frame_count = 0
+    # Connection-specific stats
+    connection_stats = {
+        "frames_received": 0,
+        "frames_processed": 0,
+        "start_time": time.time(),
+        "last_log_time": time.time()
+    }
     
     try:
         while True:
@@ -134,16 +152,27 @@ async def websocket_video_endpoint(websocket: WebSocket):
                 frame_data = json.loads(data)
                 
                 if frame_data.get("type") == "video_frame":
-                    frame_count += 1
-                    logger.info(f"🎬 Processing frame {frame_count}")
+                    connection_stats["frames_received"] += 1
+                    frame_stats["frames_received"] += 1
                     
-                    # Process the video frame
-                    response = await process_video_frame(frame_data)
+                    # Process the video frame asynchronously
+                    response = await process_video_frame_optimized(frame_data, connection_stats)
                     await websocket.send_text(json.dumps(response))
                     
+                    connection_stats["frames_processed"] += 1
+                    frame_stats["frames_processed"] += 1
+                    
+                    # Log performance every 120 frames
+                    if connection_stats["frames_processed"] % 120 == 0:
+                        await log_performance_stats(connection_stats)
+                    
                 elif frame_data.get("type") == "ping":
-                    # Respond to ping with pong
-                    await websocket.send_text(json.dumps({"type": "pong"}))
+                    # Respond to ping with pong and performance stats
+                    stats = face_processor.get_performance_stats()
+                    await websocket.send_text(json.dumps({
+                        "type": "pong",
+                        "stats": stats
+                    }))
                     
             except json.JSONDecodeError:
                 logger.error("❌ Invalid JSON received")
@@ -164,26 +193,24 @@ async def websocket_video_endpoint(websocket: WebSocket):
         active_websockets.discard(websocket)
         logger.info(f"📹 WebSocket connection closed. Active connections: {len(active_websockets)}")
 
-async def process_video_frame(frame_data):
-    """Process a single video frame"""
+async def process_video_frame_optimized(frame_data, connection_stats):
+    """Optimized video frame processing"""
+    process_start = time.time()
+    
     try:
         # Decode base64 image
         image_data = frame_data.get("data")
         if not image_data:
             return {"type": "error", "message": "No image data provided"}
         
-        # Remove data URL prefix if present
-        if image_data.startswith('data:image'):
-            image_data = image_data.split(',')[1]
-        
-        # Decode base64 to bytes
+        # Decode base64 to bytes (optimized)
         try:
             image_bytes = base64.b64decode(image_data)
         except Exception as e:
             logger.error(f"❌ Base64 decode error: {str(e)}")
             return {"type": "error", "message": f"Base64 decode failed: {str(e)}"}
         
-        # Convert to numpy array
+        # Convert to numpy array (optimized)
         nparr = np.frombuffer(image_bytes, np.uint8)
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
@@ -191,41 +218,77 @@ async def process_video_frame(frame_data):
             logger.error("❌ Failed to decode image from bytes")
             return {"type": "error", "message": "Failed to decode image"}
         
-        logger.info(f"📷 Frame decoded: {frame.shape}")
+        decode_time = (time.time() - process_start) * 1000
         
         # Process frame with face swapping if source face is loaded
         if face_processor.has_source_face():
-            logger.info("🎭 Processing frame with face swap")
-            processed_frame = face_processor.process_frame(frame)
+            # Use async processing for better performance
+            processed_frame = await face_processor.process_frame_async(frame)
         else:
-            logger.warning("⚠️ No source face loaded, returning original frame")
             processed_frame = frame
         
-        # Encode processed frame back to base64
-        _, buffer = cv2.imencode('.jpg', processed_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-        processed_data = base64.b64encode(buffer).decode('utf-8')
+        process_time = (time.time() - process_start) * 1000
         
-        logger.info("✅ Frame processed successfully")
+        # Encode processed frame back to base64 (optimized quality)
+        encode_start = time.time()
+        _, buffer = cv2.imencode('.jpg', processed_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        processed_data = base64.b64encode(buffer).decode('utf-8')
+        encode_time = (time.time() - encode_start) * 1000
+        
+        total_time = (time.time() - process_start) * 1000
         
         return {
             "type": "processed_frame",
             "data": processed_data,
-            "timestamp": frame_data.get("timestamp", 0)
+            "timestamp": frame_data.get("timestamp", 0),
+            "performance": {
+                "decode_time": round(decode_time, 2),
+                "process_time": round(process_time, 2),
+                "encode_time": round(encode_time, 2),
+                "total_time": round(total_time, 2)
+            }
         }
         
     except Exception as e:
         logger.error(f"❌ Error processing video frame: {str(e)}")
         return {"type": "error", "message": str(e)}
 
+async def log_performance_stats(connection_stats):
+    """Log performance statistics"""
+    current_time = time.time()
+    time_diff = current_time - connection_stats["start_time"]
+    
+    if time_diff > 0:
+        avg_fps = connection_stats["frames_processed"] / time_diff
+        face_stats = face_processor.get_performance_stats()
+        
+        logger.info(f"🚀 Performance Stats:")
+        logger.info(f"   Connection FPS: {avg_fps:.1f}")
+        logger.info(f"   Processing FPS: {face_stats.get('fps', 0)}")
+        logger.info(f"   Avg Process Time: {face_stats.get('avg_process_time', 0)}ms")
+        logger.info(f"   Total Frames: {connection_stats['frames_processed']}")
+
 @app.get("/status")
 async def get_status():
-    """Get application status"""
+    """Get application status with performance metrics"""
+    stats = face_processor.get_performance_stats()
+    
     return JSONResponse(content={
         "status": "running",
         "face_loaded": face_processor.has_source_face(),
         "active_websocket_connections": len(active_websockets),
-        "execution_provider": getattr(face_processor, 'execution_provider', 'Unknown'),
-        "websocket_enabled": True
+        "websocket_enabled": True,
+        "performance": stats,
+        "global_stats": frame_stats
+    })
+
+@app.get("/performance")
+async def get_performance():
+    """Get detailed performance metrics"""
+    return JSONResponse(content={
+        "face_processor": face_processor.get_performance_stats(),
+        "global_stats": frame_stats,
+        "active_connections": len(active_websockets)
     })
 
 @app.post("/clear-face")
@@ -235,4 +298,12 @@ async def clear_face():
     return JSONResponse(content={"message": "Face cleared successfully"})
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    # Run with optimized settings for RTX 4090
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8000, 
+        log_level="info",
+        loop="asyncio",
+        workers=1  # Single worker for GPU processing
+    )

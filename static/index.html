@@ -3,52 +3,321 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deep Live Cam - WebSocket Interface</title>
+    <title>Deep Live Cam - RTX 4090 Optimized</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; background: rgba(255, 255, 255, 0.95); padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1); backdrop-filter: blur(10px); }
-        .header { text-align: center; margin-bottom: 40px; }
-        .header h1 { font-size: 2.5em; color: #333; margin-bottom: 10px; }
-        .header p { color: #666; font-size: 1.1em; }
-        .controls { display: flex; gap: 30px; margin-bottom: 40px; flex-wrap: wrap; }
-        .control-group { flex: 1; min-width: 300px; padding: 20px; background: white; border-radius: 15px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); }
-        .upload-area { border: 3px dashed #ddd; padding: 30px; text-align: center; border-radius: 15px; margin-bottom: 20px; transition: all 0.3s ease; cursor: pointer; }
-        .upload-area:hover { border-color: #667eea; background-color: rgba(102, 126, 234, 0.05); }
-        .upload-area.dragover { border-color: #667eea; background-color: rgba(102, 126, 234, 0.1); transform: scale(1.02); }
-        .video-container { display: flex; gap: 30px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap; }
-        .video-wrapper { text-align: center; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); position: relative; }
-        .video-wrapper video, .video-wrapper canvas { width: 400px; height: 300px; border-radius: 10px; background: #000; object-fit: cover; }
-        .video-label { margin-top: 15px; font-weight: bold; color: #333; font-size: 1.1em; }
-        .btn { padding: 12px 25px; margin: 8px; border: none; border-radius: 25px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
-        .btn-primary { background: linear-gradient(45deg, #667eea, #764ba2); color: white; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
-        .btn-danger { background: linear-gradient(45deg, #f093fb, #f5576c); color: white; }
-        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4); }
-        .btn-success { background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; }
-        .btn-success:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-        .status { padding: 15px 20px; margin: 15px 0; border-radius: 10px; font-weight: 600; display: none; }
-        .status.success { background: linear-gradient(45deg, #56ab2f, #a8e6cf); color: white; }
-        .status.error { background: linear-gradient(45deg, #f093fb, #f5576c); color: white; }
-        .preview-image { max-width: 200px; max-height: 200px; border-radius: 10px; margin: 15px 0; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            min-height: 100vh; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            background: rgba(255, 255, 255, 0.95); 
+            padding: 30px; 
+            border-radius: 20px; 
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1); 
+            backdrop-filter: blur(10px); 
+        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { 
+            font-size: 2.8em; 
+            color: #333; 
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header p { color: #666; font-size: 1.2em; }
+        .gpu-badge { 
+            display: inline-block;
+            background: linear-gradient(45deg, #00ff88, #00aa55);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        .controls { 
+            display: flex; 
+            gap: 20px; 
+            margin-bottom: 30px; 
+            flex-wrap: wrap; 
+        }
+        .control-group { 
+            flex: 1; 
+            min-width: 300px; 
+            padding: 20px; 
+            background: white; 
+            border-radius: 15px; 
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); 
+        }
+        .upload-area { 
+            border: 3px dashed #ddd; 
+            padding: 25px; 
+            text-align: center; 
+            border-radius: 15px; 
+            margin-bottom: 15px; 
+            transition: all 0.3s ease; 
+            cursor: pointer; 
+        }
+        .upload-area:hover { 
+            border-color: #667eea; 
+            background-color: rgba(102, 126, 234, 0.05); 
+        }
+        .upload-area.dragover { 
+            border-color: #667eea; 
+            background-color: rgba(102, 126, 234, 0.1); 
+            transform: scale(1.02); 
+        }
+        .video-container { 
+            display: flex; 
+            gap: 20px; 
+            justify-content: center; 
+            margin-bottom: 20px; 
+            flex-wrap: wrap; 
+        }
+        .video-wrapper { 
+            text-align: center; 
+            background: white; 
+            padding: 15px; 
+            border-radius: 15px; 
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); 
+            position: relative; 
+        }
+        .video-wrapper video, .video-wrapper canvas { 
+            width: 480px; 
+            height: 360px; 
+            border-radius: 10px; 
+            background: #000; 
+            object-fit: cover; 
+        }
+        .video-label { 
+            margin-top: 10px; 
+            font-weight: bold; 
+            color: #333; 
+            font-size: 1.1em; 
+        }
+        .btn { 
+            padding: 12px 25px; 
+            margin: 8px; 
+            border: none; 
+            border-radius: 25px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: 600; 
+            transition: all 0.3s ease; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+        }
+        .btn-primary { 
+            background: linear-gradient(45deg, #667eea, #764ba2); 
+            color: white; 
+        }
+        .btn-primary:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); 
+        }
+        .btn-danger { 
+            background: linear-gradient(45deg, #f093fb, #f5576c); 
+            color: white; 
+        }
+        .btn-danger:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4); 
+        }
+        .btn-success { 
+            background: linear-gradient(45deg, #4facfe, #00f2fe); 
+            color: white; 
+        }
+        .btn-success:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4); 
+        }
+        .btn:disabled { 
+            opacity: 0.5; 
+            cursor: not-allowed; 
+            transform: none; 
+        }
+        .status { 
+            padding: 15px 20px; 
+            margin: 15px 0; 
+            border-radius: 10px; 
+            font-weight: 600; 
+            display: none; 
+        }
+        .status.success { 
+            background: linear-gradient(45deg, #56ab2f, #a8e6cf); 
+            color: white; 
+        }
+        .status.error { 
+            background: linear-gradient(45deg, #f093fb, #f5576c); 
+            color: white; 
+        }
+        .preview-image { 
+            max-width: 200px; 
+            max-height: 200px; 
+            border-radius: 10px; 
+            margin: 15px 0; 
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); 
+        }
         .hidden { display: none !important; }
-        .connection-status { position: fixed; top: 20px; right: 20px; padding: 10px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; z-index: 1000; }
-        .connection-status.connected { background: #28a745; color: white; }
-        .connection-status.connecting { background: #ffc107; color: black; }
-        .connection-status.disconnected { background: #dc3545; color: white; }
-        .fps-counter { position: absolute; top: 10px; left: 10px; background: rgba(0, 0, 0, 0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; }
-        .stats { position: fixed; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 10px; font-family: monospace; font-size: 12px; min-width: 300px; }
-        .debug-log { position: fixed; bottom: 200px; left: 20px; background: rgba(0,0,0,0.9); color: #00ff00; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 11px; max-width: 400px; max-height: 150px; overflow-y: auto; }
+        .connection-status { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            padding: 12px 20px; 
+            border-radius: 25px; 
+            font-size: 14px; 
+            font-weight: bold; 
+            z-index: 1000; 
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .connection-status.connected { 
+            background: linear-gradient(45deg, #28a745, #20c997); 
+            color: white; 
+        }
+        .connection-status.connecting { 
+            background: linear-gradient(45deg, #ffc107, #fd7e14); 
+            color: black; 
+        }
+        .connection-status.disconnected { 
+            background: linear-gradient(45deg, #dc3545, #e74c3c); 
+            color: white; 
+        }
+        .fps-counter { 
+            position: absolute; 
+            top: 15px; 
+            left: 15px; 
+            background: rgba(0, 0, 0, 0.8); 
+            color: #00ff88; 
+            padding: 8px 12px; 
+            border-radius: 8px; 
+            font-size: 12px; 
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        .quality-indicator { 
+            position: absolute; 
+            top: 15px; 
+            right: 15px; 
+            background: rgba(0, 255, 136, 0.9); 
+            color: black; 
+            padding: 6px 10px; 
+            border-radius: 6px; 
+            font-size: 11px; 
+            font-weight: bold;
+        }
+        .stats { 
+            position: fixed; 
+            bottom: 20px; 
+            left: 20px; 
+            background: rgba(0,0,0,0.9); 
+            color: #00ff88; 
+            padding: 20px; 
+            border-radius: 15px; 
+            font-family: 'Courier New', monospace; 
+            font-size: 13px; 
+            min-width: 350px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        .debug-log { 
+            position: fixed; 
+            bottom: 280px; 
+            left: 20px; 
+            background: rgba(0, 0, 0, 0.95); 
+            color: #00ff88; 
+            padding: 15px; 
+            border-radius: 10px; 
+            font-family: 'Courier New', monospace; 
+            font-size: 11px; 
+            max-width: 450px; 
+            max-height: 200px; 
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        .performance-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            color: #00ff88;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            min-width: 280px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        .rtx-badge {
+            background: linear-gradient(45deg, #76b900, #4d7c0f);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+        .metric-value {
+            color: #00ff88;
+            font-weight: bold;
+        }
+        .scroll-container {
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .scroll-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scroll-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #00ff88;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
     <div class="connection-status" id="connectionStatus">🔴 Disconnected</div>
     
+    <div class="performance-panel" id="performancePanel">
+        <div><strong>🚀 RTX 4090 Performance</strong></div>
+        <div id="performanceContent">
+            <div class="metric">
+                <span>GPU Status:</span>
+                <span class="metric-value">Idle</span>
+            </div>
+            <div class="metric">
+                <span>Processing FPS:</span>
+                <span class="metric-value">0</span>
+            </div>
+            <div class="metric">
+                <span>Process Time:</span>
+                <span class="metric-value">0ms</span>
+            </div>
+            <div class="metric">
+                <span>Total Latency:</span>
+                <span class="metric-value">0ms</span>
+            </div>
+        </div>
+    </div>
+    
     <div class="container">
         <div class="header">
             <h1>🎭 Deep Live Cam</h1>
             <p>Real-time AI Face Swapping with WebSocket Streaming</p>
+            <div class="gpu-badge">🚀 RTX 4090 OPTIMIZED</div>
         </div>
 
         <div class="controls">
@@ -76,18 +345,30 @@
                     <button class="btn btn-primary" id="clearBtn" disabled>🗑️ Clear Face</button>
                 </div>
                 <div class="status" id="statusMessage"></div>
+                
+                <div style="margin-top: 15px;">
+                    <label>Quality: <span id="qualityDisplay">85%</span></label>
+                    <input type="range" id="qualitySlider" min="60" max="95" value="85" 
+                           style="width: 100%; margin: 5px 0;">
+                    
+                    <label>Target FPS: <span id="fpsDisplay">25</span></label>
+                    <input type="range" id="fpsSlider" min="15" max="30" value="25" 
+                           style="width: 100%; margin: 5px 0;">
+                </div>
             </div>
         </div>
 
         <div class="video-container">
             <div class="video-wrapper">
                 <video id="localVideo" autoplay muted playsinline></video>
-                <div class="fps-counter" id="inputFps">Input: 0 FPS</div>
+                <div class="fps-counter" id="inputFps">INPUT: 0 FPS</div>
+                <div class="quality-indicator">HD</div>
                 <div class="video-label">📹 Your Camera</div>
             </div>
             <div class="video-wrapper">
                 <canvas id="outputCanvas"></canvas>
-                <div class="fps-counter" id="outputFps">Output: 0 FPS</div>
+                <div class="fps-counter" id="outputFps">OUTPUT: 0 FPS</div>
+                <div class="quality-indicator rtx-badge">RTX</div>
                 <div class="video-label">🎭 Face Swapped Output</div>
             </div>
         </div>
@@ -96,21 +377,44 @@
     <div class="stats" id="statsPanel">
         <div><strong>📊 Connection Stats</strong></div>
         <div id="statsContent">
-            Status: Disconnected<br>
-            Frames Sent: 0<br>
-            Frames Received: 0<br>
-            Latency: 0ms<br>
-            Quality: 80%
+            <div class="metric">
+                <span>Status:</span>
+                <span class="metric-value">Disconnected</span>
+            </div>
+            <div class="metric">
+                <span>Frames Sent:</span>
+                <span class="metric-value">0</span>
+            </div>
+            <div class="metric">
+                <span>Frames Received:</span>
+                <span class="metric-value">0</span>
+            </div>
+            <div class="metric">
+                <span>Network Latency:</span>
+                <span class="metric-value">0ms</span>
+            </div>
+            <div class="metric">
+                <span>Quality:</span>
+                <span class="metric-value">85%</span>
+            </div>
+            <div class="metric">
+                <span>Decode Time:</span>
+                <span class="metric-value">0ms</span>
+            </div>
+            <div class="metric">
+                <span>Encode Time:</span>
+                <span class="metric-value">0ms</span>
+            </div>
         </div>
     </div>
 
     <div class="debug-log" id="debugLog">
         <div><strong>🐛 Debug Log</strong></div>
-        <div id="debugContent">Ready...</div>
+        <div class="scroll-container" id="debugContent">Ready for RTX 4090 acceleration...</div>
     </div>
 
     <script>
-        class DeepLiveCamWebSocket {
+        class DeepLiveCamRTX4090 {
             constructor() {
                 this.initializeElements();
                 this.initializeVariables();
@@ -134,10 +438,15 @@
                 this.outputFpsElement = document.getElementById('outputFps');
                 this.statsContent = document.getElementById('statsContent');
                 this.debugContent = document.getElementById('debugContent');
+                this.performanceContent = document.getElementById('performanceContent');
+                this.qualitySlider = document.getElementById('qualitySlider');
+                this.qualityDisplay = document.getElementById('qualityDisplay');
+                this.fpsSlider = document.getElementById('fpsSlider');
+                this.fpsDisplay = document.getElementById('fpsDisplay');
                 
-                // Set canvas size
-                this.outputCanvas.width = 400;
-                this.outputCanvas.height = 300;
+                // Set canvas size for high quality
+                this.outputCanvas.width = 480;
+                this.outputCanvas.height = 360;
             }
             
             initializeVariables() {
@@ -145,6 +454,11 @@
                 this.localStream = null;
                 this.isStreaming = false;
                 this.faceUploaded = false;
+                
+                // RTX 4090 optimized settings
+                this.targetFps = 25;
+                this.quality = 0.85;
+                this.frameInterval = 1000 / this.targetFps;
                 
                 // Performance tracking
                 this.framesSent = 0;
@@ -155,14 +469,32 @@
                 this.latencySum = 0;
                 this.latencyCount = 0;
                 
-                // Frame capture settings
+                // Advanced performance metrics
+                this.performanceMetrics = {
+                    decodeTime: 0,
+                    processTime: 0,
+                    encodeTime: 0,
+                    totalTime: 0,
+                    gpuUtilization: 0,
+                    serverFps: 0
+                };
+                
+                // Frame capture optimization
                 this.captureCanvas = document.createElement('canvas');
                 this.captureCtx = this.captureCanvas.getContext('2d');
-                this.frameInterval = 1000 / 15; // 15 FPS to reduce load
-                this.quality = 0.7; // JPEG quality
                 
-                // Debug
+                // Connection optimization
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 5;
+                this.reconnectDelay = 2000;
+                
+                // Debug and monitoring
                 this.debugMessages = [];
+                this.maxDebugMessages = 12;
+                
+                // Performance monitoring intervals
+                this.performanceInterval = null;
+                this.statsInterval = null;
             }
             
             initializeEventListeners() {
@@ -171,24 +503,58 @@
                 this.clearBtn.addEventListener('click', () => this.clearFace());
                 this.faceUpload.addEventListener('change', (e) => this.handleFileUpload(e));
                 
+                // Quality and FPS controls
+                this.qualitySlider.addEventListener('input', (e) => {
+                    this.quality = e.target.value / 100;
+                    this.qualityDisplay.textContent = e.target.value + '%';
+                });
+                
+                this.fpsSlider.addEventListener('input', (e) => {
+                    this.targetFps = parseInt(e.target.value);
+                    this.frameInterval = 1000 / this.targetFps;
+                    this.fpsDisplay.textContent = e.target.value;
+                });
+                
                 // Drag and drop
                 this.setupDragAndDrop();
                 
-                // Start stats update interval
-                setInterval(() => this.updateStats(), 1000);
+                // Start monitoring intervals
+                this.startMonitoring();
+            }
+            
+            startMonitoring() {
+                // Performance update every second
+                this.performanceInterval = setInterval(() => this.updatePerformanceMetrics(), 1000);
+                
+                // Stats update every 500ms for responsiveness
+                this.statsInterval = setInterval(() => this.updateStats(), 500);
+            }
+            
+            stopMonitoring() {
+                if (this.performanceInterval) {
+                    clearInterval(this.performanceInterval);
+                    this.performanceInterval = null;
+                }
+                if (this.statsInterval) {
+                    clearInterval(this.statsInterval);
+                    this.statsInterval = null;
+                }
             }
             
             addDebugMessage(message) {
                 const timestamp = new Date().toLocaleTimeString();
                 this.debugMessages.push(`[${timestamp}] ${message}`);
                 
-                // Keep only last 8 messages
-                if (this.debugMessages.length > 8) {
+                // Keep only recent messages
+                if (this.debugMessages.length > this.maxDebugMessages) {
                     this.debugMessages.shift();
                 }
                 
                 this.debugContent.innerHTML = this.debugMessages.join('<br>');
-                console.log(message); // Also log to console
+                console.log(message);
+                
+                // Auto-scroll to bottom
+                this.debugContent.scrollTop = this.debugContent.scrollHeight;
             }
             
             setupDragAndDrop() {
@@ -221,7 +587,7 @@
             async uploadFaceImage(file) {
                 try {
                     this.showStatus('Uploading face image...', 'success');
-                    this.addDebugMessage('📤 Uploading face image...');
+                    this.addDebugMessage('📤 Uploading face image for RTX 4090 processing...');
                     
                     const formData = new FormData();
                     formData.append('file', file);
@@ -246,7 +612,7 @@
                         this.startBtn.disabled = false;
                         this.clearBtn.disabled = false;
                         this.showStatus('Face image uploaded successfully!', 'success');
-                        this.addDebugMessage('✅ Face uploaded successfully');
+                        this.addDebugMessage('✅ Face uploaded and optimized for RTX 4090');
                     } else {
                         throw new Error(result.detail || 'Upload failed');
                     }
@@ -268,7 +634,7 @@
                         this.startBtn.disabled = true;
                         this.clearBtn.disabled = true;
                         this.showStatus('Face cleared successfully!', 'success');
-                        this.addDebugMessage('🗑️ Face cleared');
+                        this.addDebugMessage('🗑️ Face cleared from RTX 4090 memory');
                     }
                 } catch (error) {
                     this.showStatus(`Error: ${error.message}`, 'error');
@@ -284,49 +650,47 @@
                     }
                     
                     this.updateConnectionStatus('connecting');
-                    this.addDebugMessage('🚀 Starting video stream...');
-                    this.showStatus('Starting video stream...', 'success');
+                    this.addDebugMessage('🚀 Starting RTX 4090 accelerated video stream...');
+                    this.showStatus('Starting high-performance video stream...', 'success');
                     
-                    // Get user media
+                    // Get user media with high quality settings
                     this.localStream = await navigator.mediaDevices.getUserMedia({
                         video: { 
-                            width: { ideal: 640 }, 
-                            height: { ideal: 480 },
-                            frameRate: { ideal: 30 }
+                            width: { ideal: 1280, min: 640 }, 
+                            height: { ideal: 720, min: 480 },
+                            frameRate: { ideal: 30, min: 24 }
                         },
                         audio: false
                     });
                     
                     this.localVideo.srcObject = this.localStream;
-                    this.addDebugMessage('📹 Camera stream obtained');
+                    this.addDebugMessage('📹 High-quality camera stream obtained');
                     
                     // Wait for video to be ready
                     await new Promise((resolve) => {
                         this.localVideo.onloadedmetadata = () => {
-                            this.addDebugMessage(`📐 Video dimensions: ${this.localVideo.videoWidth}x${this.localVideo.videoHeight}`);
+                            this.addDebugMessage(`📐 Video: ${this.localVideo.videoWidth}x${this.localVideo.videoHeight}`);
                             resolve();
                         };
                     });
                     
                     // Setup capture canvas
-                    this.captureCanvas.width = this.localVideo.videoWidth || 640;
-                    this.captureCanvas.height = this.localVideo.videoHeight || 480;
-                    this.addDebugMessage(`🎨 Canvas setup: ${this.captureCanvas.width}x${this.captureCanvas.height}`);
+                    this.captureCanvas.width = this.localVideo.videoWidth || 1280;
+                    this.captureCanvas.height = this.localVideo.videoHeight || 720;
+                    this.addDebugMessage(`🎨 Canvas: ${this.captureCanvas.width}x${this.captureCanvas.height}`);
                     
                     // Connect WebSocket
                     await this.connectWebSocket();
                     
-                    // Set streaming flag FIRST
+                    // Start streaming
                     this.isStreaming = true;
-                    
-                    // Start frame capture loop
                     this.startFrameCapture();
                     
                     this.startBtn.disabled = true;
                     this.stopBtn.disabled = false;
                     
-                    this.showStatus('Video stream started successfully!', 'success');
-                    this.addDebugMessage('✅ Stream started, capturing frames...');
+                    this.showStatus('RTX 4090 accelerated stream started!', 'success');
+                    this.addDebugMessage(`✅ Stream active @ ${this.targetFps}FPS, Quality: ${Math.round(this.quality * 100)}%`);
                     
                 } catch (error) {
                     this.showStatus(`Error: ${error.message}`, 'error');
@@ -340,13 +704,14 @@
                     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                     const wsUrl = `${protocol}//${window.location.host}/ws/video`;
                     
-                    this.addDebugMessage(`🔗 Connecting to ${wsUrl}`);
+                    this.addDebugMessage(`🔗 Connecting to RTX 4090 backend: ${wsUrl}`);
                     
                     this.websocket = new WebSocket(wsUrl);
                     
                     this.websocket.onopen = () => {
                         this.updateConnectionStatus('connected');
-                        this.addDebugMessage('✅ WebSocket connected');
+                        this.addDebugMessage('✅ RTX 4090 backend connected');
+                        this.reconnectAttempts = 0;
                         resolve();
                     };
                     
@@ -357,9 +722,8 @@
                     this.websocket.onclose = () => {
                         this.updateConnectionStatus('disconnected');
                         this.addDebugMessage('❌ WebSocket disconnected');
-                        if (this.isStreaming) {
-                            // Try to reconnect
-                            setTimeout(() => this.reconnectWebSocket(), 2000);
+                        if (this.isStreaming && this.reconnectAttempts < this.maxReconnectAttempts) {
+                            setTimeout(() => this.reconnectWebSocket(), this.reconnectDelay);
                         }
                     };
                     
@@ -368,39 +732,44 @@
                         reject(error);
                     };
                     
-                    // Timeout after 10 seconds
+                    // Timeout
                     setTimeout(() => {
                         if (this.websocket.readyState !== WebSocket.OPEN) {
                             reject(new Error('WebSocket connection timeout'));
                         }
-                    }, 10000);
+                    }, 15000);
                 });
             }
             
             async reconnectWebSocket() {
                 if (!this.isStreaming) return;
                 
+                this.reconnectAttempts++;
                 try {
                     this.updateConnectionStatus('connecting');
-                    this.addDebugMessage('🔄 Reconnecting WebSocket...');
+                    this.addDebugMessage(`🔄 Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
                     await this.connectWebSocket();
                 } catch (error) {
-                    this.addDebugMessage(`❌ Reconnection failed: ${error.message}`);
-                    setTimeout(() => this.reconnectWebSocket(), 5000);
+                    this.addDebugMessage(`❌ Reconnection ${this.reconnectAttempts} failed: ${error.message}`);
+                    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+                        this.addDebugMessage('💀 Max reconnection attempts reached');
+                        this.stopStream();
+                    } else {
+                        setTimeout(() => this.reconnectWebSocket(), this.reconnectDelay * this.reconnectAttempts);
+                    }
                 }
             }
             
             startFrameCapture() {
-                this.addDebugMessage('🎬 Starting frame capture loop');
+                this.addDebugMessage(`🎬 Starting ${this.targetFps}FPS capture with RTX 4090 acceleration`);
                 
                 const captureFrame = () => {
                     if (!this.isStreaming) {
-                        this.addDebugMessage('⏹️ Streaming stopped, ending capture');
+                        this.addDebugMessage('⏹️ Capture stopped');
                         return;
                     }
                     
                     if (!this.localVideo.videoWidth || !this.localVideo.videoHeight) {
-                        this.addDebugMessage('⏳ Video not ready, retrying...');
                         setTimeout(() => requestAnimationFrame(captureFrame), 100);
                         return;
                     }
@@ -414,25 +783,25 @@
                             this.captureCanvas.height
                         );
                         
-                        // Convert to base64
+                        // Convert to base64 with quality setting
                         const dataURL = this.captureCanvas.toDataURL('image/jpeg', this.quality);
                         const timestamp = Date.now();
                         
-                        // Send to server if WebSocket is open
+                        // Send to RTX 4090 backend
                         if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
                             this.websocket.send(JSON.stringify({
                                 type: 'video_frame',
-                                data: dataURL.split(',')[1], // Remove data:image/jpeg;base64, prefix
-                                timestamp: timestamp
+                                data: dataURL.split(',')[1],
+                                timestamp: timestamp,
+                                quality: this.quality,
+                                fps: this.targetFps
                             }));
                             
                             this.framesSent++;
                             
                             if (this.framesSent === 1) {
-                                this.addDebugMessage('📡 First frame sent!');
+                                this.addDebugMessage('📡 First frame sent to RTX 4090!');
                             }
-                        } else {
-                            this.addDebugMessage('⚠️ WebSocket not ready');
                         }
                         
                     } catch (error) {
@@ -443,7 +812,6 @@
                     setTimeout(() => requestAnimationFrame(captureFrame), this.frameInterval);
                 };
                 
-                // Start the capture loop
                 requestAnimationFrame(captureFrame);
             }
             
@@ -464,10 +832,18 @@
                             this.framesReceived++;
                             
                             if (this.framesReceived === 1) {
-                                this.addDebugMessage('📺 First frame received!');
+                                this.addDebugMessage('📺 First frame from RTX 4090!');
                             }
                             
-                            // Calculate latency
+                            // Update performance metrics
+                            if (message.performance) {
+                                this.performanceMetrics = {
+                                    ...this.performanceMetrics,
+                                    ...message.performance
+                                };
+                            }
+                            
+                            // Calculate network latency
                             if (message.timestamp) {
                                 const latency = Date.now() - message.timestamp;
                                 this.latencySum += latency;
@@ -476,8 +852,13 @@
                         };
                         img.src = 'data:image/jpeg;base64,' + message.data;
                         
+                    } else if (message.type === 'pong' && message.stats) {
+                        // Update server performance stats
+                        this.performanceMetrics.serverFps = message.stats.fps || 0;
+                        this.performanceMetrics.gpuUtilization = message.stats.gpu_util || 0;
+                        
                     } else if (message.type === 'error') {
-                        this.addDebugMessage(`❌ Server error: ${message.message}`);
+                        this.addDebugMessage(`❌ RTX 4090 error: ${message.message}`);
                         this.showStatus(`Server error: ${message.message}`, 'error');
                     }
                     
@@ -488,8 +869,8 @@
             
             async stopStream() {
                 try {
-                    this.showStatus('Stopping video stream...', 'success');
-                    this.addDebugMessage('🛑 Stopping stream...');
+                    this.showStatus('Stopping stream...', 'success');
+                    this.addDebugMessage('🛑 Stopping RTX 4090 stream...');
                     
                     this.isStreaming = false;
                     
@@ -515,9 +896,10 @@
                     this.framesReceived = 0;
                     this.latencySum = 0;
                     this.latencyCount = 0;
+                    this.reconnectAttempts = 0;
                     
-                    this.showStatus('Video stream stopped', 'success');
-                    this.addDebugMessage('✅ Stream stopped');
+                    this.showStatus('Stream stopped', 'success');
+                    this.addDebugMessage('✅ RTX 4090 stream stopped');
                     
                 } catch (error) {
                     this.showStatus(`Error: ${error.message}`, 'error');
@@ -526,21 +908,38 @@
             }
             
             updateConnectionStatus(status) {
-                switch (status) {
-                    case 'connected':
-                        this.connectionStatus.textContent = '🟢 Connected';
-                        this.connectionStatus.className = 'connection-status connected';
-                        break;
-                    case 'connecting':
-                        this.connectionStatus.textContent = '🟡 Connecting...';
-                        this.connectionStatus.className = 'connection-status connecting';
-                        break;
-                    case 'disconnected':
-                    default:
-                        this.connectionStatus.textContent = '🔴 Disconnected';
-                        this.connectionStatus.className = 'connection-status disconnected';
-                        break;
-                }
+                const statusMap = {
+                    'connected': { text: '🟢 RTX 4090 READY', class: 'connected' },
+                    'connecting': { text: '🟡 Connecting...', class: 'connecting' },
+                    'disconnected': { text: '🔴 Disconnected', class: 'disconnected' }
+                };
+                
+                const statusInfo = statusMap[status] || statusMap['disconnected'];
+                this.connectionStatus.textContent = statusInfo.text;
+                this.connectionStatus.className = `connection-status ${statusInfo.class}`;
+            }
+            
+            updatePerformanceMetrics() {
+                const metrics = this.performanceMetrics;
+                
+                this.performanceContent.innerHTML = `
+                    <div class="metric">
+                        <span>GPU Status:</span>
+                        <span class="metric-value">${this.isStreaming ? 'Processing' : 'Idle'}</span>
+                    </div>
+                    <div class="metric">
+                        <span>Server FPS:</span>
+                        <span class="metric-value">${metrics.serverFps}</span>
+                    </div>
+                    <div class="metric">
+                        <span>Process Time:</span>
+                        <span class="metric-value">${metrics.processTime}ms</span>
+                    </div>
+                    <div class="metric">
+                        <span>Total Latency:</span>
+                        <span class="metric-value">${metrics.totalTime}ms</span>
+                    </div>
+                `;
             }
             
             updateStats() {
@@ -554,8 +953,8 @@
                 }
                 
                 // Update FPS display
-                this.inputFpsElement.textContent = `Input: ${this.inputFps} FPS`;
-                this.outputFpsElement.textContent = `Output: ${this.outputFps} FPS`;
+                this.inputFpsElement.textContent = `INPUT: ${this.inputFps} FPS`;
+                this.outputFpsElement.textContent = `OUTPUT: ${this.outputFps} FPS`;
                 
                 // Calculate average latency
                 const avgLatency = this.latencyCount > 0 ? Math.round(this.latencySum / this.latencyCount) : 0;
@@ -565,12 +964,37 @@
                     (this.websocket.readyState === WebSocket.OPEN ? 'Connected' : 'Disconnected') : 
                     'Disconnected';
                     
+                const metrics = this.performanceMetrics;
+                
                 this.statsContent.innerHTML = `
-                    Status: ${status}<br>
-                    Frames Sent: ${this.framesSent}<br>
-                    Frames Received: ${this.framesReceived}<br>
-                    Latency: ${avgLatency}ms<br>
-                    Quality: ${Math.round(this.quality * 100)}%
+                    <div class="metric">
+                        <span>Status:</span>
+                        <span class="metric-value">${status}</span>
+                    </div>
+                    <div class="metric">
+                        <span>Frames Sent:</span>
+                        <span class="metric-value">${this.framesSent}</span>
+                    </div>
+                    <div class="metric">
+                        <span>Frames Received:</span>
+                        <span class="metric-value">${this.framesReceived}</span>
+                    </div>
+                    <div class="metric">
+                        <span>Network Latency:</span>
+                        <span class="metric-value">${avgLatency}ms</span>
+                    </div>
+                    <div class="metric">
+                        <span>Quality:</span>
+                        <span class="metric-value">${Math.round(this.quality * 100)}%</span>
+                    </div>
+                    <div class="metric">
+                        <span>Decode Time:</span>
+                        <span class="metric-value">${metrics.decodeTime}ms</span>
+                    </div>
+                    <div class="metric">
+                        <span>Encode Time:</span>
+                        <span class="metric-value">${metrics.encodeTime}ms</span>
+                    </div>
                 `;
             }
             
@@ -585,9 +1009,15 @@
             }
         }
         
-        // Initialize the application
+        // Initialize the RTX 4090 optimized application
         document.addEventListener('DOMContentLoaded', () => {
-            new DeepLiveCamWebSocket();
+            const app = new DeepLiveCamRTX4090();
+            
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', () => {
+                app.stopStream();
+                app.stopMonitoring();
+            });
         });
     </script>
 </body>
