@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Live Cam - WebSocket Interface</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: rgba(255, 255, 255, 0.95); padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1); backdrop-filter: blur(10px); }
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 { font-size: 2.5em; color: #333; margin-bottom: 10px; }
+        .header p { color: #666; font-size: 1.1em; }
+        .controls { display: flex; gap: 30px; margin-bottom: 40px; flex-wrap: wrap; }
+        .control-group { flex: 1; min-width: 300px; padding: 20px; background: white; border-radius: 15px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); }
+        .upload-area { border: 3px dashed #ddd; padding: 30px; text-align: center; border-radius: 15px; margin-bottom: 20px; transition: all 0.3s ease; cursor: pointer; }
+        .upload-area:hover { border-color: #667eea; background-color: rgba(102, 126, 234, 0.05); }
+        .upload-area.dragover { border-color: #667eea; background-color: rgba(102, 126, 234, 0.1); transform: scale(1.02); }
+        .video-container { display: flex; gap: 30px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap; }
+        .video-wrapper { text-align: center; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); position: relative; }
+        .video-wrapper video, .video-wrapper canvas { width: 400px; height: 300px; border-radius: 10px; background: #000; object-fit: cover; }
+        .video-label { margin-top: 15px; font-weight: bold; color: #333; font-size: 1.1em; }
+        .btn { padding: 12px 25px; margin: 8px; border: none; border-radius: 25px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-primary { background: linear-gradient(45deg, #667eea, #764ba2); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
+        .btn-danger { background: linear-gradient(45deg, #f093fb, #f5576c); color: white; }
+        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4); }
+        .btn-success { background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; }
+        .btn-success:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .status { padding: 15px 20px; margin: 15px 0; border-radius: 10px; font-weight: 600; display: none; }
+        .status.success { background: linear-gradient(45deg, #56ab2f, #a8e6cf); color: white; }
+        .status.error { background: linear-gradient(45deg, #f093fb, #f5576c); color: white; }
+        .preview-image { max-width: 200px; max-height: 200px; border-radius: 10px; margin: 15px 0; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); }
+        .hidden { display: none !important; }
+        .connection-status { position: fixed; top: 20px; right: 20px; padding: 10px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; z-index: 1000; }
+        .connection-status.connected { background: #28a745; color: white; }
+        .connection-status.connecting { background: #ffc107; color: black; }
+        .connection-status.disconnected { background: #dc3545; color: white; }
+        .fps-counter { position: absolute; top: 10px; left: 10px; background: rgba(0, 0, 0, 0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; }
+        .stats { position: fixed; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 10px; font-family: monospace; font-size: 12px; min-width: 300px; }
+        .debug-log { position: fixed; bottom: 200px; left: 20px; background: rgba(0,0,0,0.9); color: #00ff00; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 11px; max-width: 400px; max-height: 150px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">🔴 Disconnected</div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🎭 Deep Live Cam</h1>
+            <p>Real-time AI Face Swapping with WebSocket Streaming</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <h3>1. 📸 Upload Face Image</h3>
+                <div class="upload-area" id="uploadArea">
+                    <div style="font-size: 3em; margin-bottom: 10px;">📷</div>
+                    <p>Drag and drop an image here or click to select</p>
+                    <input type="file" id="faceUpload" accept="image/*" style="display: none;">
+                    <button class="btn btn-primary" onclick="document.getElementById('faceUpload').click()">
+                        Choose Image
+                    </button>
+                </div>
+                <div id="imagePreview" class="hidden">
+                    <img id="previewImg" class="preview-image" alt="Preview">
+                    <p style="color: #28a745; font-weight: bold;">✅ Face image uploaded successfully!</p>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>2. 🎥 Camera Controls</h3>
+                <div style="text-align: center;">
+                    <button class="btn btn-success" id="startBtn" disabled>▶️ Start Stream</button>
+                    <button class="btn btn-danger" id="stopBtn" disabled>⏹️ Stop Stream</button>
+                    <button class="btn btn-primary" id="clearBtn" disabled>🗑️ Clear Face</button>
+                </div>
+                <div class="status" id="statusMessage"></div>
+            </div>
+        </div>
+
+        <div class="video-container">
+            <div class="video-wrapper">
+                <video id="localVideo" autoplay muted playsinline></video>
+                <div class="fps-counter" id="inputFps">Input: 0 FPS</div>
+                <div class="video-label">📹 Your Camera</div>
+            </div>
+            <div class="video-wrapper">
+                <canvas id="outputCanvas"></canvas>
+                <div class="fps-counter" id="outputFps">Output: 0 FPS</div>
+                <div class="video-label">🎭 Face Swapped Output</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats" id="statsPanel">
+        <div><strong>📊 Connection Stats</strong></div>
+        <div id="statsContent">
+            Status: Disconnected<br>
+            Frames Sent: 0<br>
+            Frames Received: 0<br>
+            Latency: 0ms<br>
+            Quality: 80%
+        </div>
+    </div>
+
+    <div class="debug-log" id="debugLog">
+        <div><strong>🐛 Debug Log</strong></div>
+        <div id="debugContent">Ready...</div>
+    </div>
+
+    <script>
+        class DeepLiveCamWebSocket {
+            constructor() {
+                this.initializeElements();
+                this.initializeVariables();
+                this.initializeEventListeners();
+            }
+            
+            initializeElements() {
+                this.localVideo = document.getElementById('localVideo');
+                this.outputCanvas = document.getElementById('outputCanvas');
+                this.outputCtx = this.outputCanvas.getContext('2d');
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.faceUpload = document.getElementById('faceUpload');
+                this.uploadArea = document.getElementById('uploadArea');
+                this.imagePreview = document.getElementById('imagePreview');
+                this.previewImg = document.getElementById('previewImg');
+                this.statusMessage = document.getElementById('statusMessage');
+                this.connectionStatus = document.getElementById('connectionStatus');
+                this.inputFpsElement = document.getElementById('inputFps');
+                this.outputFpsElement = document.getElementById('outputFps');
+                this.statsContent = document.getElementById('statsContent');
+                this.debugContent = document.getElementById('debugContent');
+                
+                // Set canvas size
+                this.outputCanvas.width = 400;
+                this.outputCanvas.height = 300;
+            }
+            
+            initializeVariables() {
+                this.websocket = null;
+                this.localStream = null;
+                this.isStreaming = false;
+                this.faceUploaded = false;
+                
+                // Performance tracking
+                this.framesSent = 0;
+                this.framesReceived = 0;
+                this.lastFrameTime = Date.now();
+                this.inputFps = 0;
+                this.outputFps = 0;
+                this.latencySum = 0;
+                this.latencyCount = 0;
+                
+                // Frame capture settings
+                this.captureCanvas = document.createElement('canvas');
+                this.captureCtx = this.captureCanvas.getContext('2d');
+                this.frameInterval = 1000 / 15; // 15 FPS to reduce load
+                this.quality = 0.7; // JPEG quality
+                
+                // Debug
+                this.debugMessages = [];
+            }
+            
+            initializeEventListeners() {
+                this.startBtn.addEventListener('click', () => this.startStream());
+                this.stopBtn.addEventListener('click', () => this.stopStream());
+                this.clearBtn.addEventListener('click', () => this.clearFace());
+                this.faceUpload.addEventListener('change', (e) => this.handleFileUpload(e));
+                
+                // Drag and drop
+                this.setupDragAndDrop();
+                
+                // Start stats update interval
+                setInterval(() => this.updateStats(), 1000);
+            }
+            
+            addDebugMessage(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                this.debugMessages.push(`[${timestamp}] ${message}`);
+                
+                // Keep only last 8 messages
+                if (this.debugMessages.length > 8) {
+                    this.debugMessages.shift();
+                }
+                
+                this.debugContent.innerHTML = this.debugMessages.join('<br>');
+                console.log(message); // Also log to console
+            }
+            
+            setupDragAndDrop() {
+                this.uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.uploadArea.classList.add('dragover');
+                });
+                
+                this.uploadArea.addEventListener('dragleave', () => {
+                    this.uploadArea.classList.remove('dragover');
+                });
+                
+                this.uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    this.uploadArea.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.uploadFaceImage(files[0]);
+                    }
+                });
+            }
+            
+            async handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    await this.uploadFaceImage(file);
+                }
+            }
+            
+            async uploadFaceImage(file) {
+                try {
+                    this.showStatus('Uploading face image...', 'success');
+                    this.addDebugMessage('📤 Uploading face image...');
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    const response = await fetch('/upload-face', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        // Show preview
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            this.previewImg.src = e.target.result;
+                            this.imagePreview.classList.remove('hidden');
+                        };
+                        reader.readAsDataURL(file);
+                        
+                        this.faceUploaded = true;
+                        this.startBtn.disabled = false;
+                        this.clearBtn.disabled = false;
+                        this.showStatus('Face image uploaded successfully!', 'success');
+                        this.addDebugMessage('✅ Face uploaded successfully');
+                    } else {
+                        throw new Error(result.detail || 'Upload failed');
+                    }
+                } catch (error) {
+                    this.showStatus(`Error: ${error.message}`, 'error');
+                    this.addDebugMessage(`❌ Upload error: ${error.message}`);
+                }
+            }
+            
+            async clearFace() {
+                try {
+                    const response = await fetch('/clear-face', {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        this.faceUploaded = false;
+                        this.imagePreview.classList.add('hidden');
+                        this.startBtn.disabled = true;
+                        this.clearBtn.disabled = true;
+                        this.showStatus('Face cleared successfully!', 'success');
+                        this.addDebugMessage('🗑️ Face cleared');
+                    }
+                } catch (error) {
+                    this.showStatus(`Error: ${error.message}`, 'error');
+                    this.addDebugMessage(`❌ Clear error: ${error.message}`);
+                }
+            }
+            
+            async startStream() {
+                try {
+                    if (!this.faceUploaded) {
+                        this.showStatus('Please upload a face image first', 'error');
+                        return;
+                    }
+                    
+                    this.updateConnectionStatus('connecting');
+                    this.addDebugMessage('🚀 Starting video stream...');
+                    this.showStatus('Starting video stream...', 'success');
+                    
+                    // Get user media
+                    this.localStream = await navigator.mediaDevices.getUserMedia({
+                        video: { 
+                            width: { ideal: 640 }, 
+                            height: { ideal: 480 },
+                            frameRate: { ideal: 30 }
+                        },
+                        audio: false
+                    });
+                    
+                    this.localVideo.srcObject = this.localStream;
+                    this.addDebugMessage('📹 Camera stream obtained');
+                    
+                    // Wait for video to be ready
+                    await new Promise((resolve) => {
+                        this.localVideo.onloadedmetadata = () => {
+                            this.addDebugMessage(`📐 Video dimensions: ${this.localVideo.videoWidth}x${this.localVideo.videoHeight}`);
+                            resolve();
+                        };
+                    });
+                    
+                    // Setup capture canvas
+                    this.captureCanvas.width = this.localVideo.videoWidth || 640;
+                    this.captureCanvas.height = this.localVideo.videoHeight || 480;
+                    this.addDebugMessage(`🎨 Canvas setup: ${this.captureCanvas.width}x${this.captureCanvas.height}`);
+                    
+                    // Connect WebSocket
+                    await this.connectWebSocket();
+                    
+                    // Set streaming flag FIRST
+                    this.isStreaming = true;
+                    
+                    // Start frame capture loop
+                    this.startFrameCapture();
+                    
+                    this.startBtn.disabled = true;
+                    this.stopBtn.disabled = false;
+                    
+                    this.showStatus('Video stream started successfully!', 'success');
+                    this.addDebugMessage('✅ Stream started, capturing frames...');
+                    
+                } catch (error) {
+                    this.showStatus(`Error: ${error.message}`, 'error');
+                    this.addDebugMessage(`❌ Start error: ${error.message}`);
+                    this.updateConnectionStatus('disconnected');
+                }
+            }
+            
+            async connectWebSocket() {
+                return new Promise((resolve, reject) => {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${protocol}//${window.location.host}/ws/video`;
+                    
+                    this.addDebugMessage(`🔗 Connecting to ${wsUrl}`);
+                    
+                    this.websocket = new WebSocket(wsUrl);
+                    
+                    this.websocket.onopen = () => {
+                        this.updateConnectionStatus('connected');
+                        this.addDebugMessage('✅ WebSocket connected');
+                        resolve();
+                    };
+                    
+                    this.websocket.onmessage = (event) => {
+                        this.handleWebSocketMessage(event.data);
+                    };
+                    
+                    this.websocket.onclose = () => {
+                        this.updateConnectionStatus('disconnected');
+                        this.addDebugMessage('❌ WebSocket disconnected');
+                        if (this.isStreaming) {
+                            // Try to reconnect
+                            setTimeout(() => this.reconnectWebSocket(), 2000);
+                        }
+                    };
+                    
+                    this.websocket.onerror = (error) => {
+                        this.addDebugMessage(`❌ WebSocket error: ${error}`);
+                        reject(error);
+                    };
+                    
+                    // Timeout after 10 seconds
+                    setTimeout(() => {
+                        if (this.websocket.readyState !== WebSocket.OPEN) {
+                            reject(new Error('WebSocket connection timeout'));
+                        }
+                    }, 10000);
+                });
+            }
+            
+            async reconnectWebSocket() {
+                if (!this.isStreaming) return;
+                
+                try {
+                    this.updateConnectionStatus('connecting');
+                    this.addDebugMessage('🔄 Reconnecting WebSocket...');
+                    await this.connectWebSocket();
+                } catch (error) {
+                    this.addDebugMessage(`❌ Reconnection failed: ${error.message}`);
+                    setTimeout(() => this.reconnectWebSocket(), 5000);
+                }
+            }
+            
+            startFrameCapture() {
+                this.addDebugMessage('🎬 Starting frame capture loop');
+                
+                const captureFrame = () => {
+                    if (!this.isStreaming) {
+                        this.addDebugMessage('⏹️ Streaming stopped, ending capture');
+                        return;
+                    }
+                    
+                    if (!this.localVideo.videoWidth || !this.localVideo.videoHeight) {
+                        this.addDebugMessage('⏳ Video not ready, retrying...');
+                        setTimeout(() => requestAnimationFrame(captureFrame), 100);
+                        return;
+                    }
+                    
+                    try {
+                        // Capture frame from video
+                        this.captureCtx.drawImage(
+                            this.localVideo, 
+                            0, 0, 
+                            this.captureCanvas.width, 
+                            this.captureCanvas.height
+                        );
+                        
+                        // Convert to base64
+                        const dataURL = this.captureCanvas.toDataURL('image/jpeg', this.quality);
+                        const timestamp = Date.now();
+                        
+                        // Send to server if WebSocket is open
+                        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                            this.websocket.send(JSON.stringify({
+                                type: 'video_frame',
+                                data: dataURL.split(',')[1], // Remove data:image/jpeg;base64, prefix
+                                timestamp: timestamp
+                            }));
+                            
+                            this.framesSent++;
+                            
+                            if (this.framesSent === 1) {
+                                this.addDebugMessage('📡 First frame sent!');
+                            }
+                        } else {
+                            this.addDebugMessage('⚠️ WebSocket not ready');
+                        }
+                        
+                    } catch (error) {
+                        this.addDebugMessage(`❌ Capture error: ${error.message}`);
+                    }
+                    
+                    // Schedule next frame
+                    setTimeout(() => requestAnimationFrame(captureFrame), this.frameInterval);
+                };
+                
+                // Start the capture loop
+                requestAnimationFrame(captureFrame);
+            }
+            
+            handleWebSocketMessage(data) {
+                try {
+                    const message = JSON.parse(data);
+                    
+                    if (message.type === 'processed_frame') {
+                        // Display processed frame
+                        const img = new Image();
+                        img.onload = () => {
+                            this.outputCtx.drawImage(
+                                img, 
+                                0, 0, 
+                                this.outputCanvas.width, 
+                                this.outputCanvas.height
+                            );
+                            this.framesReceived++;
+                            
+                            if (this.framesReceived === 1) {
+                                this.addDebugMessage('📺 First frame received!');
+                            }
+                            
+                            // Calculate latency
+                            if (message.timestamp) {
+                                const latency = Date.now() - message.timestamp;
+                                this.latencySum += latency;
+                                this.latencyCount++;
+                            }
+                        };
+                        img.src = 'data:image/jpeg;base64,' + message.data;
+                        
+                    } else if (message.type === 'error') {
+                        this.addDebugMessage(`❌ Server error: ${message.message}`);
+                        this.showStatus(`Server error: ${message.message}`, 'error');
+                    }
+                    
+                } catch (error) {
+                    this.addDebugMessage(`❌ Message parse error: ${error.message}`);
+                }
+            }
+            
+            async stopStream() {
+                try {
+                    this.showStatus('Stopping video stream...', 'success');
+                    this.addDebugMessage('🛑 Stopping stream...');
+                    
+                    this.isStreaming = false;
+                    
+                    if (this.localStream) {
+                        this.localStream.getTracks().forEach(track => track.stop());
+                        this.localStream = null;
+                    }
+                    
+                    if (this.websocket) {
+                        this.websocket.close();
+                        this.websocket = null;
+                    }
+                    
+                    this.localVideo.srcObject = null;
+                    this.outputCtx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
+                    
+                    this.startBtn.disabled = false;
+                    this.stopBtn.disabled = true;
+                    this.updateConnectionStatus('disconnected');
+                    
+                    // Reset stats
+                    this.framesSent = 0;
+                    this.framesReceived = 0;
+                    this.latencySum = 0;
+                    this.latencyCount = 0;
+                    
+                    this.showStatus('Video stream stopped', 'success');
+                    this.addDebugMessage('✅ Stream stopped');
+                    
+                } catch (error) {
+                    this.showStatus(`Error: ${error.message}`, 'error');
+                    this.addDebugMessage(`❌ Stop error: ${error.message}`);
+                }
+            }
+            
+            updateConnectionStatus(status) {
+                switch (status) {
+                    case 'connected':
+                        this.connectionStatus.textContent = '🟢 Connected';
+                        this.connectionStatus.className = 'connection-status connected';
+                        break;
+                    case 'connecting':
+                        this.connectionStatus.textContent = '🟡 Connecting...';
+                        this.connectionStatus.className = 'connection-status connecting';
+                        break;
+                    case 'disconnected':
+                    default:
+                        this.connectionStatus.textContent = '🔴 Disconnected';
+                        this.connectionStatus.className = 'connection-status disconnected';
+                        break;
+                }
+            }
+            
+            updateStats() {
+                // Calculate FPS
+                const now = Date.now();
+                const timeDiff = (now - this.lastFrameTime) / 1000;
+                
+                if (timeDiff > 0) {
+                    this.inputFps = Math.round(this.framesSent / timeDiff);
+                    this.outputFps = Math.round(this.framesReceived / timeDiff);
+                }
+                
+                // Update FPS display
+                this.inputFpsElement.textContent = `Input: ${this.inputFps} FPS`;
+                this.outputFpsElement.textContent = `Output: ${this.outputFps} FPS`;
+                
+                // Calculate average latency
+                const avgLatency = this.latencyCount > 0 ? Math.round(this.latencySum / this.latencyCount) : 0;
+                
+                // Update stats panel
+                const status = this.websocket ? 
+                    (this.websocket.readyState === WebSocket.OPEN ? 'Connected' : 'Disconnected') : 
+                    'Disconnected';
+                    
+                this.statsContent.innerHTML = `
+                    Status: ${status}<br>
+                    Frames Sent: ${this.framesSent}<br>
+                    Frames Received: ${this.framesReceived}<br>
+                    Latency: ${avgLatency}ms<br>
+                    Quality: ${Math.round(this.quality * 100)}%
+                `;
+            }
+            
+            showStatus(message, type) {
+                this.statusMessage.textContent = message;
+                this.statusMessage.className = `status ${type}`;
+                this.statusMessage.style.display = 'block';
+                
+                setTimeout(() => {
+                    this.statusMessage.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            new DeepLiveCamWebSocket();
+        });
+    </script>
+</body>
+</html>
